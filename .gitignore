@@ -1,0 +1,19 @@
+node_modules/
+dist/
+.env
+.env.local
+.env.*.local
+secrets/
+secrets/**
+
+# keypairs
+*.json
+*.keypair
+*.pem
+
+# logs
+logs/
+backtest_result.json
+.DS_Store
+.vscode/
+*.log

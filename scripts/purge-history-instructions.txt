@@ -1,0 +1,10 @@
+1) Install BFG: https://rtyley.github.io/bfg-repo-cleaner/
+2) Make a backup: git clone --mirror git@github.com:username/repo.git repo-mirror
+3) Run BFG to delete the folder 'secrets':
+   java -jar bfg.jar --delete-folders secrets repo-mirror
+4) Cleanup and push:
+   cd repo-mirror
+   git reflog expire --expire=now --all
+   git gc --prune=now --aggressive
+   git push --force
+5) After forced push, notify any collaborators to re-clone the repo.
