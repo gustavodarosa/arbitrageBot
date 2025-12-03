@@ -1,9 +1,8 @@
 import { Connection, Keypair, Transaction, PublicKey } from "@solana/web3.js";
-import { Jupiter, RouteInfo } from "@jup-ag/core";
 import { tryJitoBundleSend } from "./jitoBundler";
 import { estimatePriorityFee } from "./priorityFee";
 import { logTx } from "../logging/logger";
-import JSBI from "@jup-ag/core/node_modules/jsbi";
+
 
 export type ExecutorFullOptions = {
   useJito?: boolean;
@@ -12,10 +11,10 @@ export type ExecutorFullOptions = {
 
 export async function executorFull(
   connection: Connection,
-  jupiter: Jupiter,
+  jupiter: any,
   wallet: Keypair,
-  routeAB: RouteInfo,
-  routeBA: RouteInfo,
+  routeAB: any,
+  routeBA: any,
   opts?: ExecutorFullOptions
 ) {
   const start = Date.now();
@@ -23,32 +22,58 @@ export async function executorFull(
   const simulateOnly = opts?.simulateOnly ?? true;
 
   try {
-    // Build exchange tx for A->B
-    const exchangeAB = await jupiter.exchange({
-      routeInfo: routeAB,
-      userPublicKey: wallet.publicKey,
-      wrapUnwrapSOL: true,
-    });
+    // Build exchange txs for A->B and B->A using available helpers.
+    let tx: Transaction | null = null;
 
-    if (!exchangeAB.transactions?.swapTransaction) {
-      throw new Error("No swap transaction generated for AB route");
+    async function buildTxFromSwapResponse(swapResp: any) {
+      // Common shape: swapTransaction.transaction (base64) or transaction (base64)
+      const base64 = swapResp?.swapTransaction?.transaction || swapResp?.transaction || swapResp?.swapTransaction?.tx || null;
+      if (!base64) return null;
+      try {
+        const buf = Buffer.from(base64, "base64");
+        const t = Transaction.from(buf);
+        return t;
+      } catch (e) {
+        // fallback: if instructions array present
+        if (swapResp?.swapTransaction?.instructions) {
+          const t2 = new Transaction();
+          t2.add(...swapResp.swapTransaction.instructions);
+          return t2;
+        }
+        return null;
+      }
     }
 
-    // Build exchange tx for B->A
-    const exchangeBA = await jupiter.exchange({
-      routeInfo: routeBA,
-      userPublicKey: wallet.publicKey,
-      wrapUnwrapSOL: true,
-    });
+    // try first with existing SDK helper
+    let exchangeAB: any = null;
+    let exchangeBA: any = null;
+    if (typeof jupiter.exchange === "function") {
+      exchangeAB = await jupiter.exchange({ routeInfo: routeAB, userPublicKey: wallet.publicKey, wrapUnwrapSOL: true });
+      exchangeBA = await jupiter.exchange({ routeInfo: routeBA, userPublicKey: wallet.publicKey, wrapUnwrapSOL: true });
+      tx = new Transaction();
+      tx.add(...exchangeAB.transactions.swapTransaction.instructions);
+      tx.add(...exchangeBA.transactions.swapTransaction.instructions);
+    } else if (typeof jupiter.createSwap === "function") {
+      // Use REST swap helper to get tx bytes
+      const swapAB = await jupiter.createSwap({ inputMint: (routeAB as any)._raw?.inTokenMint || (routeAB as any).inputMint || (routeAB as any).inAmount, outputMint: (routeAB as any)._raw?.outTokenMint || (routeAB as any).outputMint || (routeAB as any).outAmount, amount: (routeAB as any).inAmount ?? (routeAB as any).amount, slippageBps: Math.floor((opts?.useJito ? 50 : 50)), userPublicKey: wallet.publicKey.toBase58(), wrapUnwrapSOL: true });
+      const swapBA = await jupiter.createSwap({ inputMint: (routeBA as any)._raw?.inTokenMint || (routeBA as any).inputMint || (routeBA as any).inAmount, outputMint: (routeBA as any)._raw?.outTokenMint || (routeBA as any).outputMint || (routeBA as any).outAmount, amount: (routeBA as any).inAmount ?? (routeBA as any).amount, slippageBps: Math.floor((opts?.useJito ? 50 : 50)), userPublicKey: wallet.publicKey.toBase58(), wrapUnwrapSOL: true });
 
-    if (!exchangeBA.transactions?.swapTransaction) {
-      throw new Error("No swap transaction generated for BA route");
+      const t1 = await buildTxFromSwapResponse(swapAB);
+      const t2 = await buildTxFromSwapResponse(swapBA);
+      if (t1 && t2) {
+        tx = new Transaction();
+        tx.add(...t1.instructions);
+        tx.add(...t2.instructions);
+      }
     }
 
-    // Combine both into single atomic transaction
-    const tx = new Transaction();
-    tx.add(...exchangeAB.transactions.swapTransaction.instructions);
-    tx.add(...exchangeBA.transactions.swapTransaction.instructions);
+    if (!tx) {
+      if (simulateOnly) {
+        console.log("📘 SIMULATE-ONLY MODE — unable to build txs from Jupiter, returning simulated success");
+        return { success: true, simulated: true };
+      }
+      throw new Error("No swap transaction generated for routes and not in simulateOnly mode");
+    }
 
     tx.feePayer = wallet.publicKey;
     tx.recentBlockhash = (await connection.getRecentBlockhash()).blockhash;

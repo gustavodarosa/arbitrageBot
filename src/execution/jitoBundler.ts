@@ -2,7 +2,6 @@
 // and may require an official SDK or signing method. This file provides a structured
 // bundling attempt and falls back to sendRawTransaction when bundling isn't available.
 
-import fetch from "node-fetch";
 import { Connection, Keypair } from "@solana/web3.js";
 
 export type JitoBundleOptions = {
@@ -23,7 +22,7 @@ export async function tryJitoBundleSend(connection: Connection, signedTxs: Buffe
       params: [signedTxs.map((b) => b.toString("base64"))],
     };
 
-    const r = await fetch(jitoUrl, {
+    const r = await (globalThis.fetch ?? (await import('undici')).fetch)(jitoUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),

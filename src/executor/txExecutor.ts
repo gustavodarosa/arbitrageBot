@@ -1,5 +1,4 @@
 import { Connection, Keypair, Transaction } from "@solana/web3.js";
-import { Jupiter, RouteInfo } from "@jup-ag/core";
 
 export type ExecOptions = {
   simulateOnly?: boolean; // if true, do not broadcast
@@ -29,10 +28,10 @@ export function calculateDynamicSlippage(buyImpactPct: number, sellImpactPct: nu
 // Execute a prepared Jupiter route: try to build exchange txs via Jupiter SDK, sign and send.
 export async function executeArbitrage(
   connection: Connection,
-  jupiter: Jupiter,
+  jupiter: any,
   wallet: Keypair,
-  routeAB: RouteInfo, // route object from jupiter for A->B
-  routeBA: RouteInfo, // route object from jupiter for B->A
+  routeAB: any, // route object from jupiter for A->B
+  routeBA: any, // route object from jupiter for B->A
   opts?: ExecOptions
 ) {
   const simulateOnly = opts?.simulateOnly ?? true;

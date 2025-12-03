@@ -22,7 +22,7 @@ async function main() {
   startDashboard(dashboardPort);
 
   // Load Jupiter client
-  const jupiter = await makeJupiter(connection);
+  const jupiter = await makeJupiter();
 
   if (!jupiter) {
     console.warn("Jupiter client unavailable — skipping pair generation, ranking, and scanner startup.");
@@ -88,7 +88,7 @@ async function main() {
           slippageBps: 50,
         });
 
-        if (!routesAB.routesInfos?.[0]) {
+        if (!routesAB.routes || !routesAB.routes[0]) {
           console.error("❌ No route AB found on recompute");
           return;
         }
@@ -96,17 +96,17 @@ async function main() {
         const routesBA = await jupiter.computeRoutes({
           inputMint: outputMint,
           outputMint: inputMint,
-          amount: routesAB.routesInfos[0].outAmount,
+          amount: routesAB.routes[0].outAmount,
           slippageBps: 50,
         });
 
-        if (!routesBA.routesInfos?.[0]) {
+        if (!routesBA.routes || !routesBA.routes[0]) {
           console.error("❌ No route BA found on recompute");
           return;
         }
 
         const paper = process.env.PAPER === "true" || process.env.NODE_ENV !== "production";
-        const res = await executorFull(connection, jupiter, keypair, routesAB.routesInfos[0], routesBA.routesInfos[0], {
+        const res = await executorFull(connection, jupiter, keypair, routesAB.routes[0], routesBA.routes[0], {
           useJito: process.env.JITO_RPC_URL ? true : false,
           simulateOnly: paper,
         });

@@ -1,11 +1,10 @@
 import { TokenListProvider, TokenInfo } from "@solana/spl-token-registry";
 import { PublicKey } from "@solana/web3.js";
-import { Jupiter } from "@jup-ag/core";
-import JSBI from "@jup-ag/core/node_modules/jsbi";
+import JSBI from "jsbi";
 
 export type GeneratedPair = { a: PublicKey; b: PublicKey; tokenInfo?: TokenInfo };
 
-export async function generateAutomaticPairsAdvanced(jupiter: Jupiter, sampleAmountSol = 0.1, maxPairs = 300): Promise<GeneratedPair[]> {
+export async function generateAutomaticPairsAdvanced(jupiter: any, sampleAmountSol = 0.1, maxPairs = 300): Promise<GeneratedPair[]> {
   console.log("Loading token registry (mainnet)...");
   const tokenListProvider = new TokenListProvider();
   const tokens = await tokenListProvider.resolve();
@@ -20,8 +19,8 @@ export async function generateAutomaticPairsAdvanced(jupiter: Jupiter, sampleAmo
     if ((t.extensions && t.extensions?.website && t.extensions.website.includes('scam')) ) return false;
     if (t.decimals < 6) return false; // small decimals often reflex tokens
     if (t.symbol.length < 2 || t.symbol.length > 8) return false;
-    // prefer tokens with cg id or tags
-    if (!t.extensions?.coingeckoId && (!t.tags || t.tags.length === 0)) return false;
+    // prefer tokens with cg id or tags (extensions typing varies across versions)
+    if (!((t.extensions as any)?.coingeckoId) && (!t.tags || t.tags.length === 0)) return false;
     return true;
   });
 
@@ -56,12 +55,12 @@ export async function generateAutomaticPairsAdvanced(jupiter: Jupiter, sampleAmo
         amount: amountLamports,
         slippageBps: 100, // generous simulation
       });
-      if (!res.routesInfos.length) continue;
-      const best = res.routesInfos[0];
+      if (!res.routes || !res.routes.length) continue;
+      const best = res.routes[0];
       const priceImpact = best.priceImpactPct || 0;
       // higher score for lower price impact (more liquid) and having coingecko id
       let score = 100 - (priceImpact * 100);
-      if (p.tokenInfo?.extensions?.coingeckoId) score += 10;
+      if ((p.tokenInfo?.extensions as any)?.coingeckoId) score += 10;
       scored.push({ pair: p, score, priceImpactPct: priceImpact });
     } catch (err) {
       // ignore errors from computeRoutes

@@ -16,7 +16,7 @@ export function analyzeTokenRisk(token?: TokenInfo): RiskReport {
   }
 
   // basic heuristics
-  if (!token.extensions?.coingeckoId) {
+  if (!((token.extensions as any)?.coingeckoId)) {
     r.reasons.push("no coingecko id");
     r.score -= 15;
   } else {

@@ -1,6 +1,5 @@
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
-import { Jupiter } from "@jup-ag/core";
-import JSBI from "@jup-ag/core/node_modules/jsbi";
+import JSBI from "jsbi";
 import { antiLossDoubleCheck } from "../utils/antiLossFilters";
 
 export type ScannerOptions = {
@@ -26,7 +25,7 @@ export function defaultOptions(): ScannerOptions {
 // Basic triangular/cycle arbitrage detector for pairs X->Y->X.
 export async function startArbScanner(
   connection: Connection,
-  jupiter: Jupiter,
+  jupiter: any,
   wallet: Keypair,
   tokenPairs: Array<{ a: PublicKey; b: PublicKey }>,
   optsIn?: Partial<ScannerOptions>,
@@ -46,8 +45,8 @@ export async function startArbScanner(
         amount: amountLamports,
         slippageBps: opts.slippageBps || 50,
       });
-      if (!routesAB.routesInfos.length) return null;
-      const bestAB = routesAB.routesInfos[0];
+      if (!routesAB.routes || !routesAB.routes.length) return null;
+      const bestAB = routesAB.routes[0];
 
       // Check price impact filter (prevent high slippage pairs)
       if (bestAB.priceImpactPct > 0.5) {
@@ -61,8 +60,8 @@ export async function startArbScanner(
         amount: amountB,
         slippageBps: opts.slippageBps || 50,
       });
-      if (!routesBA.routesInfos.length) return null;
-      const bestBA = routesBA.routesInfos[0];
+      if (!routesBA.routes || !routesBA.routes.length) return null;
+      const bestBA = routesBA.routes[0];
 
       // Check reverse price impact
       if (bestBA.priceImpactPct > 0.5) {

@@ -1,6 +1,5 @@
-import { Jupiter } from "@jup-ag/core";
 import { GeneratedPair } from "./pairGeneratorAdvanced";
-import JSBI from "@jup-ag/core/node_modules/jsbi";
+import JSBI from "jsbi";
 
 export type PairScore = {
   pair: GeneratedPair;
@@ -9,7 +8,7 @@ export type PairScore = {
   score: number;
 };
 
-export async function rankPairsByLiquidityAndSpread(jupiter: Jupiter, pairs: GeneratedPair[], sampleAmountSol = 0.1, limit = 120) {
+export async function rankPairsByLiquidityAndSpread(jupiter: any, pairs: GeneratedPair[], sampleAmountSol = 0.1, limit = 120) {
   const amountLamports = JSBI.BigInt(Math.floor(sampleAmountSol * 1e9));
   const results: PairScore[] = [];
 
@@ -22,8 +21,8 @@ export async function rankPairsByLiquidityAndSpread(jupiter: Jupiter, pairs: Gen
         amount: amountLamports,
         slippageBps: 100,
       });
-      if (!res.routesInfos.length) continue;
-      const best = res.routesInfos[0];
+      if (!res.routes || !res.routes.length) continue;
+      const best = res.routes[0];
       const impact = best.priceImpactPct || 0;
       const out = Number(best.outAmount || 0);
       // score: prefer low price impact and higher out amount

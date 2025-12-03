@@ -1,5 +1,4 @@
-import { Jupiter } from "@jup-ag/core";
-import JSBI from "@jup-ag/core/node_modules/jsbi";
+import JSBI from "jsbi";
 import { PublicKey } from "@solana/web3.js";
 
 export type PairWithMints = {
@@ -23,7 +22,7 @@ export type AntiLossResult = {
  * @returns AntiLossResult if profitable, null otherwise
  */
 export async function antiLossDoubleCheck(
-  jup: Jupiter,
+  jup: any,
   pair: PairWithMints,
   amount: JSBI
 ): Promise<AntiLossResult | null> {
@@ -36,12 +35,12 @@ export async function antiLossDoubleCheck(
       slippageBps: 20,
     });
 
-    if (!buyCheck?.routesInfos?.[0]) {
+    if (!buyCheck?.routes || !buyCheck.routes[0]) {
       console.log("⚠️  antiLossDoubleCheck: no buy route found");
       return null;
     }
 
-    const intermediate = buyCheck.routesInfos[0].outAmount;
+    const intermediate = buyCheck.routes[0].outAmount;
 
     // SELL: quote → base (roundtrip)
     const sellCheck = await jup.computeRoutes({
@@ -51,12 +50,12 @@ export async function antiLossDoubleCheck(
       slippageBps: 20,
     });
 
-    if (!sellCheck?.routesInfos?.[0]) {
+    if (!sellCheck?.routes || !sellCheck.routes[0]) {
       console.log("⚠️  antiLossDoubleCheck: no sell route found");
       return null;
     }
 
-    const finalAmount = sellCheck.routesInfos[0].outAmount;
+    const finalAmount = sellCheck.routes[0].outAmount;
 
     // Guarantee real profit: final amount > initial amount
     if (JSBI.lessThanOrEqual(finalAmount, amount)) {
@@ -70,8 +69,8 @@ export async function antiLossDoubleCheck(
     const profit = JSBI.subtract(finalAmount, amount);
 
     return {
-      buy: buyCheck.routesInfos[0],
-      sell: sellCheck.routesInfos[0],
+      buy: buyCheck.routes[0],
+      sell: sellCheck.routes[0],
       profit,
     };
   } catch (err) {
